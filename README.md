@@ -7,5 +7,7 @@ First, I uploaded the datasets into R, removed some of the columns that I was no
 
 Secondly, imported into PostgreSQL, creating a database with tables inserted to upload the data into. I ran queries to clean the data, and create views of the data, and subsequent data insight, that we are most interested in. 
 
+Creating visualizations, such as the following:
+
 ![In a single picture](https://raw.githubusercontent.com/benAdambridge/R-SQL-NBA-data/main/Occurence%20of%20playoff%20scoring%20over%2020percent%20of%20games%20total%20points.png)
 
