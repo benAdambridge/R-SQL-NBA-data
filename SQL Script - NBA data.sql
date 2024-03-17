@@ -158,7 +158,6 @@ group by player_name
 order by "Occurence of playoff scoring over 20% of the games total points" DESC
 limit (10);
 
-![In a single picture](https://raw.githubusercontent.com/benAdambridge/R-SQL-NBA-data/main/Occurence%20of%20playoff%20scoring%20over%2020percent%20of%20games%20total%20points.png)
 
 -- 2.
 
