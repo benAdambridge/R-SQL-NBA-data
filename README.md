@@ -7,4 +7,4 @@ First, I uploaded the datasets into R, removed some of the columns that I was no
 
 Secondly, imported into PostgreSQL, creating a database with tables inserted to upload the data into. I ran queries to clean the data, and create views of the data, and subsequent data insight, that we are most interested in. 
 
-Thirdly, creating a connection from SQL to Power BI, to create a dashboard of our data (graphs etc.). 
+
