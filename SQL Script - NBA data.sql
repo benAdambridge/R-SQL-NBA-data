@@ -31,6 +31,7 @@ copy teamboxscore from 'C:\team_traditional_v2.csv' delimiter ',' csv header;
 SELECT *
 from teamboxscore;
 
+-- noticed that the New Orleans Pelicans were stretched across two abbreviations
 UPDATE teamboxscore
 SET team_name = 'NOH'
 WHERE team_name = 'NOK';
@@ -69,6 +70,7 @@ from boxscore;
 UPDATE boxscore
 SET team = 'NOH'
 WHERE team = 'NOK';
+
 -- 1c. add in my own dataset where it matches teams' abbreviation to their actual team name
 
 select distinct(team_name)
@@ -192,13 +194,15 @@ SELECT atn.real_team_name AS team_name, tbs.playoff_wins, atn.championships
 FROM actualteamnames atn, (SELECT team_name, count(*) as playoff_wins
 	from teamboxscore
 	where type_game = 'playoff'
-	group by team_name) 
-tbs where atn.team_name = tbs.team_name
+	group by team_name) tbs
+where atn.team_name = tbs.team_name
 and atn.championships >0
 order by tbs.playoff_wins desc;
 		
-		-- the Miami Heat are seemingly most successful in terms of playoff wins, but the Spurs and Lakers in fewer games
-		-- have won more championships - the ultimate prize.
+		-- the Miami Heat are seemingly most successful in terms of playoff wins
+		-- But the Spurs and Lakers in fewer games have won more championships - the ultimate prize.
+
+
 
 -- 4. teams who have never reached playoffs
 
@@ -207,7 +211,6 @@ FROM actualteamnames atn
 LEFT JOIN teamboxscore tbs ON atn.team_name = tbs.team_name
 AND tbs.type_game = 'playoff'
 WHERE tbs.team_name IS NULL;
-
 
 	-- subquery version
 SELECT real_team_name
@@ -219,20 +222,35 @@ WHERE NOT EXISTS (
     AND tbs.type_game = 'playoff'
 );
 
-
-		
-
 -- 5. playoff wins amongst teams who have not won a championship from 1996-2023 --
 
 SELECT atn.real_team_name AS team_name, tbs.playoff_wins, atn.championships
 FROM actualteamnames atn, (SELECT team_name, count(*) as playoff_wins
 	from teamboxscore
 	where type_game = 'playoff'
-	group by team_name) 
-tbs where atn.team_name = tbs.team_name
-and atn.championships =0;
+	group by team_name) tbs
+where atn.team_name = tbs.team_name and atn.championships =0
+order by tbs.playoff_wins desc;
 
-	-- but what if we want to reference this table, to then look at these teams' regular season success
+-- 5.1 Teams with a championship, that have less wins than the team with the most wins and no championship (Indiana Pacers)
+
+SELECT atn.real_team_name AS team_name, tbs.playoff_wins, atn.championships
+FROM actualteamnames atn, (SELECT team_name, count(*) as playoff_wins
+	from teamboxscore
+	where type_game = 'playoff'
+	group by team_name) tbs
+where atn.team_name = tbs.team_name and atn.championships >0 and tbs.playoff_wins <176
+order by tbs.playoff_wins desc;
+
+	-- The Golden state warriors have won 4 more championships than the Indiana Pacers, but with 6 less playoff wins!
 
 
-
+-- 5. CTE version
+WITH nochamp_playoffwins AS
+(SELECT team_name, count(*) as playoff_wins
+	from teamboxscore tbs
+	where type_game = 'playoff' 
+	group by team_name)
+SELECT real_team_name AS team_name, nochamp_playoffwins.playoff_wins, championships
+FROM actualteamnames atn, nochamp_playoffwins
+where championships =0;
