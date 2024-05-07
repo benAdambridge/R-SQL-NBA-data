@@ -154,31 +154,70 @@ GROUP BY tb_tp.gameid, tb_tp.date_game, b.player_name,b.team,
 b.points_game2, tb_tp.points_total_game,tb_tp.home_team, tb_tp.away_team -- group by as we have an aggregation
 ORDER BY  "player_points_perc_of_game" DESC;
 
+--2.1
+
+-- CTE version, get each player in each games % of total points scored
+
+CREATE VIEW teamboxscore_totalpoints_CTE AS
+WITH teamboxscore_totalpoints AS
+(SELECT gameid,date_game,home_team, away_team, sum(points_game) points_total_game
+FROM teamboxscore
+WHERE type_game = 'playoff'
+GROUP BY gameid, date_game,home_team, away_team
+ORDER BY gameid DESC)  
+SELECT tb_tp.gameid, tb_tp.date_game, extract(year from tb_tp.date_game) year_game, b.player_name,b.team, 
+b.points_game2 player_points, tb_tp.points_total_game total_game_points, 
+cast(round(sum(b.points_game2/tb_tp.points_total_game),2) as numeric) "player_points_perc_of_game", -- the cast makes sure this sum becomes numeric, which can then be rounded
+tb_tp.home_team, tb_tp.away_team
+FROM teamboxscore_totalpoints tb_tp
+LEFT JOIN boxscore b ON b.gameid = tb_tp.gameid
+GROUP BY tb_tp.gameid, tb_tp.date_game, b.player_name,b.team, 
+b.points_game2, tb_tp.points_total_game,tb_tp.home_team, tb_tp.away_team -- group by as we have an aggregation
+ORDER BY  "player_points_perc_of_game" desc;
+
 -- running queries off our bespoke view:
 
--- 1.
-select * from player_points_perc_of_game;
--- top 10 players for percentage of total game point scorers (in the playoffs (1997-now))
-select player_name, count(*) "Occurence of playoff scoring over 20% of the games total points"
-from player_points_perc_of_game
-where player_points_perc_of_game > 0.20 -- only include those who have scored 20% of total game points
-group by player_name
-order by "Occurence of playoff scoring over 20% of the games total points" DESC
-limit (10);
+				-- .
+				select * from player_points_perc_of_game;
+				-- top 10 players for percentage of total game point scorers (in the playoffs (1997-now))
+				select player_name, count(*) "Occurence of players scoring over 20% of a playoff games total points"
+				from player_points_perc_of_game
+				where player_points_perc_of_game > 0.20 -- only include those who have scored 20% of total game points
+				group by player_name
+				order by "Occurence of players scoring over 20% of a playoff games total points" DESC
+				limit (10);
 
--- 2.
+				--.1 querying from CTE version
+				select * from teamboxscore_totalpoints_CTE;
+				-- top 10 players for percentage of total game point scorers (in the playoffs (1997-now))
+				select player_name, count(*) "Occurence of players scoring over 20% of a playoff games total points"
+				from player_points_perc_of_game
+				where player_points_perc_of_game > 0.20 -- only include those who have scored 20% of total game points
+				group by player_name
+				order by "Occurence of players scoring over 20% of a playoff games total points" DESC
+				limit (10);
 
--- top 10 teams for percentage of total players who were a games top point scorer (in the playoffs (1997-now))
--- using our abbreviation -> real team name created table from earlier, we can see the actual real name rather than abbreviation
+				-- .
 
-select atn.real_team_name, count (gameid) occurence_above_twenty_perc
-from player_points_perc_of_game pp
-inner join actualteamnames atn ON atn.team_name = pp.team -- inner join gets rid of rows where it cant find a match
-where player_points_perc_of_game > 0.20
-group by atn.real_team_name
-order by occurence_above_twenty_perc DESC
-limit (10);
+				-- top 10 teams for percentage of total players who were a games top point scorer (in the playoffs (1997-now))
+				-- using our abbreviation -> real team name created table from earlier, we can see the actual real name rather than abbreviation
 
+				select atn.real_team_name, count (gameid) occurence_above_twenty_perc
+				from player_points_perc_of_game pp
+				inner join actualteamnames atn ON atn.team_name = pp.team -- inner join gets rid of rows where it cant find a match
+				where player_points_perc_of_game > 0.20
+				group by atn.real_team_name
+				order by occurence_above_twenty_perc DESC
+				limit (10);
+
+				--.1 CTE version
+				select atn.real_team_name, count (gameid) occurence_above_twenty_perc
+				from teamboxscore_totalpoints_CTE pp
+				inner join actualteamnames atn ON atn.team_name = pp.team -- inner join gets rid of rows where it cant find a match
+				where player_points_perc_of_game > 0.20
+				group by atn.real_team_name
+				order by occurence_above_twenty_perc DESC
+				limit (10);
 
 -- 3. playoff wins and correlation to championships won from 1996-2023 --
 
@@ -203,7 +242,6 @@ order by tbs.playoff_wins desc;
 		-- But the Spurs and Lakers in fewer games have won more championships - the ultimate prize.
 
 
-
 -- 4. teams who have never reached playoffs
 
 SELECT atn.real_team_name
@@ -224,6 +262,7 @@ WHERE NOT EXISTS (
 
 -- 5. playoff wins amongst teams who have not won a championship from 1996-2023 --
 
+-- subquery version
 SELECT atn.real_team_name AS team_name, tbs.playoff_wins, atn.championships
 FROM actualteamnames atn, (SELECT team_name, count(*) as playoff_wins
 	from teamboxscore
@@ -231,6 +270,16 @@ FROM actualteamnames atn, (SELECT team_name, count(*) as playoff_wins
 	group by team_name) tbs
 where atn.team_name = tbs.team_name and atn.championships =0
 order by tbs.playoff_wins desc;
+
+-- CTE version
+WITH nochamp_playoffwins AS
+(SELECT team_name, count(*) as playoff_wins
+	from teamboxscore tbs
+	where type_game = 'playoff' 
+	group by team_name)
+SELECT real_team_name AS team_name, nochamp_playoffwins.playoff_wins, championships
+FROM actualteamnames atn, nochamp_playoffwins
+where championships =0;
 
 -- 5.1 Teams with a championship, that have less wins than the team with the most wins and no championship (Indiana Pacers)
 
@@ -245,12 +294,4 @@ order by tbs.playoff_wins desc;
 	-- The Golden state warriors have won 4 more championships than the Indiana Pacers, but with 6 less playoff wins!
 
 
--- 5. CTE version
-WITH nochamp_playoffwins AS
-(SELECT team_name, count(*) as playoff_wins
-	from teamboxscore tbs
-	where type_game = 'playoff' 
-	group by team_name)
-SELECT real_team_name AS team_name, nochamp_playoffwins.playoff_wins, championships
-FROM actualteamnames atn, nochamp_playoffwins
-where championships =0;
+
